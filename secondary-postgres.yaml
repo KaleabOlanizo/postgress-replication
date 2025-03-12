@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-secondary
+spec:
+  ports:
+  - port: 5432
+  selector:
+    app: postgres-secondary
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-secondary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-secondary
+  template:
+    metadata:
+      labels:
+        app: postgres-secondary
+    spec:
+      containers:
+      - name: postgres
+        image: localhost:5000/my-postgres-pglogical:v2
+        env:
+        - name: POSTGRES_DB
+          value: mydb
+        - name: POSTGRES_USER
+          value: myuser
+        - name: POSTGRES_PASSWORD
+          value: mypassword
+        - name: POSTGRES_HOST
+          value: postgres-secondary
+        - name: PRIMARY_DB_HOST
+          value: postgres-primary
+        volumeMounts:
+        - name: pg-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: pg-data
+        persistentVolumeClaim:
+          claimName: pg-secondary-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pg-secondary-data
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
